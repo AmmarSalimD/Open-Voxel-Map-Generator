@@ -1,0 +1,564 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OVMG Visual Area Selector</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css">
+  <style>
+    :root {
+      color-scheme: dark;
+      --panel: rgba(13, 22, 31, 0.96);
+      --panel-soft: rgba(18, 30, 41, 0.92);
+      --line: rgba(255, 255, 255, 0.10);
+      --text: #f3f6f8;
+      --muted: #9baab7;
+      --accent: #e5b63f;
+      --accent-strong: #f4c851;
+      --safe: #58c785;
+      --heavy: #e4a842;
+      --danger: #ef6b6b;
+    }
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+    body { font-family: Inter, Segoe UI, Tahoma, Arial, sans-serif; background: #071018; color: var(--text); }
+    #map { position: absolute; inset: 0; background: #182027; }
+    .leaflet-container { font: inherit; }
+    .leaflet-control-attribution { background: rgba(8, 15, 21, 0.82) !important; color: #b9c3ca; }
+    .leaflet-control-attribution a { color: #f0c85c; }
+    .sidebar {
+      position: absolute; z-index: 1000; left: 18px; top: 18px; bottom: 18px;
+      width: min(370px, calc(100vw - 36px)); overflow-y: auto;
+      background: var(--panel); border: 1px solid var(--line); border-radius: 18px;
+      box-shadow: 0 18px 54px rgba(0, 0, 0, 0.45); padding: 20px;
+      backdrop-filter: blur(12px);
+    }
+    .eyebrow { color: var(--accent); font-size: 11px; letter-spacing: 0.22em; font-weight: 800; }
+    h1 { margin: 6px 0 4px; font-size: 25px; line-height: 1.1; }
+    .subtitle { margin: 0 0 18px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .section { border-top: 1px solid var(--line); padding-top: 15px; margin-top: 15px; }
+    .label { display: block; color: var(--muted); font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 7px; font-weight: 700; }
+    .search-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+    input, button { font: inherit; }
+    input {
+      min-width: 0; width: 100%; border: 1px solid var(--line); border-radius: 10px;
+      background: #11202b; color: var(--text); padding: 11px 12px; outline: none;
+    }
+    input:focus { border-color: rgba(229, 182, 63, 0.8); box-shadow: 0 0 0 3px rgba(229, 182, 63, 0.12); }
+    button {
+      border: 0; border-radius: 10px; cursor: pointer; padding: 10px 13px;
+      background: #233440; color: var(--text); font-weight: 700;
+    }
+    button:hover { filter: brightness(1.12); }
+    button:disabled { cursor: not-allowed; opacity: 0.45; filter: none; }
+    .primary { width: 100%; background: var(--safe); color: #071a10; padding: 13px; font-size: 14px; }
+    .primary:hover { background: #70d99a; }
+    .secondary { width: 100%; margin-top: 8px; }
+    .ghost { background: transparent; border: 1px solid var(--line); color: var(--muted); }
+    .result-list { display: none; margin-top: 8px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; max-height: 190px; overflow-y: auto; }
+    .result-item { display: block; width: 100%; text-align: left; border-radius: 0; background: #10202b; border-bottom: 1px solid var(--line); padding: 10px 11px; }
+    .result-item:last-child { border-bottom: 0; }
+    .result-item strong { display: block; font-size: 12px; }
+    .result-item small { color: var(--muted); font-size: 10px; }
+    .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .metric { padding: 10px; border-radius: 10px; background: var(--panel-soft); border: 1px solid var(--line); }
+    .metric span { display: block; color: var(--muted); font-size: 10px; margin-bottom: 4px; }
+    .metric strong { font-size: 13px; }
+    .load { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 9px; padding: 11px; border-radius: 10px; background: var(--panel-soft); border: 1px solid var(--line); }
+    .load-badge { font-size: 11px; font-weight: 800; letter-spacing: 0.08em; }
+    .load-badge.safe { color: var(--safe); }
+    .load-badge.heavy { color: var(--heavy); }
+    .load-badge.too-large { color: var(--danger); }
+    .hint { color: var(--muted); font-size: 11px; line-height: 1.45; margin: 8px 0 0; }
+    .status { min-height: 18px; color: var(--muted); font-size: 11px; margin-top: 9px; line-height: 1.4; }
+    .status.error { color: var(--danger); }
+    .status.success { color: var(--safe); }
+    .map-badge {
+      position: absolute; z-index: 999; top: 18px; right: 18px; max-width: 500px;
+      background: rgba(8, 15, 21, 0.88); border: 1px solid var(--line); border-radius: 10px;
+      padding: 9px 12px; color: #d8e0e5; font-size: 11px; backdrop-filter: blur(8px);
+    }
+    .handle-help { display: grid; grid-template-columns: 18px 1fr; gap: 8px; align-items: start; margin-top: 10px; color: var(--muted); font-size: 11px; line-height: 1.45; }
+    .handle-help strong { color: var(--text); }
+    .handle-swatch { width: 13px; height: 13px; margin-top: 1px; background: #fff; border: 3px solid var(--accent); border-radius: 3px; box-shadow: 0 1px 5px #000; }
+    .ovmg-handle-icon { background: transparent !important; border: 0 !important; }
+    .ovmg-handle {
+      width: 16px; height: 16px; margin: -8px 0 0 -8px;
+      background: #f8fafb; border: 3px solid var(--accent); border-radius: 3px;
+      box-shadow: 0 1px 7px rgba(0,0,0,.75); cursor: nwse-resize;
+    }
+    .ovmg-handle.side { border-radius: 50%; cursor: ew-resize; }
+    .ovmg-handle.side.vertical { cursor: ns-resize; }
+    .ovmg-handle.center {
+      width: 20px; height: 20px; margin: -10px 0 0 -10px; transform: rotate(45deg);
+      background: var(--accent); border-color: #fff; cursor: move;
+    }
+    @media (max-width: 700px) {
+      .sidebar { top: auto; height: 58vh; width: calc(100vw - 24px); left: 12px; bottom: 12px; }
+      .map-badge { left: 12px; right: 12px; top: 12px; max-width: none; }
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div class="map-badge" id="mapBadge">Drag the gold handles to resize; drag the center diamond to move the rectangle.</div>
+  <aside class="sidebar">
+    <div class="eyebrow">REAL GIS → VOXEL 3D</div>
+    <h1>OVMG Area Selector</h1>
+    <p class="subtitle">Choose the exact geographic area. Blender will stage a thumbnail safely. Return to Blender and click Review and Confirm before applying it.</p>
+
+    <div class="section">
+      <label class="label" for="searchInput">Search city or address</label>
+      <div class="search-row">
+        <input id="searchInput" type="search" autocomplete="off" placeholder="Search a city or neighborhood">
+        <button id="searchButton" type="button">Search</button>
+      </div>
+      <div class="result-list" id="resultList"></div>
+      <div class="status" id="searchStatus"></div>
+    </div>
+
+    <div class="section">
+      <span class="label">Selected area</span>
+      <div class="metrics">
+        <div class="metric"><span>Width</span><strong id="widthValue">—</strong></div>
+        <div class="metric"><span>Height</span><strong id="heightValue">—</strong></div>
+        <div class="metric"><span>Area</span><strong id="areaValue">—</strong></div>
+        <div class="metric"><span>Surface cells</span><strong id="cellsValue">—</strong></div>
+      </div>
+      <div class="load">
+        <div><span class="label" style="margin:0 0 2px">Estimated load</span><strong id="qualityValue">—</strong></div>
+        <div class="load-badge" id="loadBadge">—</div>
+      </div>
+      <p class="hint" id="loadHint">The estimate reserves space for buildings and vertical detail.</p>
+      <div class="handle-help"><span class="handle-swatch"></span><span><strong>Resize:</strong> drag a corner or side handle. <strong>Move:</strong> drag the center diamond.</span></div>
+      <button class="secondary" id="drawButton" type="button">Draw New Rectangle</button>
+      <button class="secondary ghost" id="fitButton" type="button">Fit Map to Selection</button>
+    </div>
+
+    <div class="section">
+      <button class="primary" id="useButton" type="button">Send Preview to Blender</button>
+      <button class="secondary ghost" id="cancelButton" type="button">Cancel</button>
+      <div class="status" id="submitStatus"></div>
+    </div>
+  </aside>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+  <script>
+  (() => {
+    'use strict';
+    const token = new URLSearchParams(window.location.search).get('token') || '';
+    const byId = (id) => document.getElementById(id);
+    const ui = {
+      searchInput: byId('searchInput'), searchButton: byId('searchButton'),
+      resultList: byId('resultList'), searchStatus: byId('searchStatus'),
+      width: byId('widthValue'), height: byId('heightValue'), area: byId('areaValue'),
+      cells: byId('cellsValue'), quality: byId('qualityValue'), load: byId('loadBadge'),
+      hint: byId('loadHint'), draw: byId('drawButton'), fit: byId('fitButton'),
+      use: byId('useButton'), cancel: byId('cancelButton'), submit: byId('submitStatus'),
+      badge: byId('mapBadge')
+    };
+    let config = null;
+    let map = null;
+    let tileLayer = null;
+    let drawnItems = null;
+    let handleLayer = null;
+    let selection = null;
+    let selectedDisplayName = '';
+
+    function endpoint(path, params = {}) {
+      const query = new URLSearchParams({token, ...params});
+      return `${path}?${query.toString()}`;
+    }
+
+    function setStatus(element, message, kind = '') {
+      element.textContent = message;
+      element.className = `status ${kind}`.trim();
+    }
+
+    function boundsObject(bounds) {
+      return {
+        south: bounds.getSouth(), west: bounds.getWest(),
+        north: bounds.getNorth(), east: bounds.getEast()
+      };
+    }
+
+    function measure(bounds) {
+      const value = boundsObject(bounds);
+      const earth = 6371008.8;
+      const radians = Math.PI / 180;
+      const centerLat = ((value.south + value.north) * 0.5) * radians;
+      const height = earth * Math.abs(value.north - value.south) * radians;
+      const width = earth * Math.abs(value.east - value.west) * radians * Math.max(0.01, Math.abs(Math.cos(centerLat)));
+      const widthCells = Math.max(1, Math.ceil(width / config.voxel_size));
+      const heightCells = Math.max(1, Math.ceil(height / config.voxel_size));
+      const cells = widthCells * heightCells;
+      const ratio = cells / Math.max(1, config.max_voxel_cells);
+      let load = 'SAFE';
+      if (ratio > 0.85) load = 'TOO_LARGE';
+      else if (ratio > 0.45) load = 'HEAVY';
+      return {width, height, areaKm2: width * height / 1e6, cells, ratio, load};
+    }
+
+    function formatCount(value) {
+      return new Intl.NumberFormat().format(Math.round(value));
+    }
+
+    function updateMetrics() {
+      const hasSelection = !!selection;
+      ui.use.disabled = !hasSelection;
+      ui.fit.disabled = !hasSelection;
+      if (!hasSelection) {
+        ui.width.textContent = ui.height.textContent = ui.area.textContent = ui.cells.textContent = '—';
+        ui.load.textContent = 'NO SELECTION';
+        ui.load.className = 'load-badge';
+        return;
+      }
+      const metrics = measure(selection.getBounds());
+      ui.width.textContent = `${(metrics.width / 1000).toFixed(2)} km`;
+      ui.height.textContent = `${(metrics.height / 1000).toFixed(2)} km`;
+      ui.area.textContent = `${metrics.areaKm2.toFixed(2)} km²`;
+      ui.cells.textContent = formatCount(metrics.cells);
+      ui.quality.textContent = `${config.quality} · ${config.voxel_size.toFixed(2)} m`;
+      if (metrics.load === 'SAFE') {
+        ui.load.textContent = 'SAFE'; ui.load.className = 'load-badge safe';
+        ui.hint.textContent = 'This selection leaves practical headroom for buildings and vertical detail.';
+      } else if (metrics.load === 'HEAVY') {
+        ui.load.textContent = 'HEAVY'; ui.load.className = 'load-badge heavy';
+        ui.hint.textContent = 'Generation may be slow. Reduce the rectangle or choose a lower quality preset in Blender.';
+      } else {
+        ui.load.textContent = 'TOO LARGE'; ui.load.className = 'load-badge too-large';
+        ui.hint.textContent = config.split_large_area ? 'This area will be split into aligned map tiles during generation.' : 'Reduce the rectangle, lower Quality, or enable Split Into Map Tiles in Advanced Options.';
+      }
+      ui.badge.textContent = `${(metrics.width / 1000).toFixed(2)} × ${(metrics.height / 1000).toFixed(2)} km · ${metrics.load.replace('_', ' ')} · drag handles to adjust`;
+    }
+
+    function handlePositions(bounds) {
+      const south = bounds.getSouth();
+      const north = bounds.getNorth();
+      const west = bounds.getWest();
+      const east = bounds.getEast();
+      const midLat = (south + north) * 0.5;
+      const midLng = (west + east) * 0.5;
+      return {
+        nw: [north, west], n: [north, midLng], ne: [north, east],
+        e: [midLat, east], se: [south, east], s: [south, midLng],
+        sw: [south, west], w: [midLat, west], center: [midLat, midLng]
+      };
+    }
+
+    function handleIcon(kind) {
+      let classes = 'ovmg-handle';
+      if (['n', 's'].includes(kind)) classes += ' side vertical';
+      else if (['e', 'w'].includes(kind)) classes += ' side';
+      else if (kind === 'center') classes += ' center';
+      return L.divIcon({
+        className: 'ovmg-handle-icon',
+        html: `<div class="${classes}" title="${kind === 'center' ? 'Move area' : 'Resize area'}"></div>`,
+        iconSize: [20, 20], iconAnchor: [10, 10]
+      });
+    }
+
+    function updateBoundsFromHandle(kind, latlng, original, startLatLng) {
+      let south = original.getSouth();
+      let north = original.getNorth();
+      let west = original.getWest();
+      let east = original.getEast();
+      const minimum = 0.00001;
+      if (kind === 'center') {
+        const dLat = latlng.lat - startLatLng.lat;
+        const dLng = latlng.lng - startLatLng.lng;
+        return L.latLngBounds([[south + dLat, west + dLng], [north + dLat, east + dLng]]);
+      }
+      if (kind.includes('n')) north = Math.max(latlng.lat, south + minimum);
+      if (kind.includes('s')) south = Math.min(latlng.lat, north - minimum);
+      if (kind.includes('e')) east = Math.max(latlng.lng, west + minimum);
+      if (kind.includes('w')) west = Math.min(latlng.lng, east - minimum);
+      return L.latLngBounds([[south, west], [north, east]]);
+    }
+
+    function buildHandles() {
+      handleLayer.clearLayers();
+      if (!selection) return;
+      const positions = handlePositions(selection.getBounds());
+      Object.entries(positions).forEach(([kind, position]) => {
+        const marker = L.marker(position, {draggable: true, icon: handleIcon(kind), zIndexOffset: 2000}).addTo(handleLayer);
+        let original = null;
+        let startLatLng = null;
+        marker.on('dragstart', () => {
+          original = selection.getBounds();
+          startLatLng = marker.getLatLng();
+        });
+        marker.on('drag', (event) => {
+          if (!original || !startLatLng) return;
+          selection.setBounds(updateBoundsFromHandle(kind, event.target.getLatLng(), original, startLatLng));
+          syncHandles(kind);
+          updateMetrics();
+        });
+        marker.on('dragend', () => {
+          syncHandles();
+          updateMetrics();
+          setStatus(ui.submit, 'Area adjusted. Send the preview when ready.');
+        });
+        marker._ovmgKind = kind;
+      });
+    }
+
+    function syncHandles(skipKind = '') {
+      if (!selection || !handleLayer) return;
+      const positions = handlePositions(selection.getBounds());
+      handleLayer.eachLayer((marker) => {
+        if (marker._ovmgKind && marker._ovmgKind !== skipKind) {
+          marker.setLatLng(positions[marker._ovmgKind]);
+        }
+      });
+    }
+
+    function replaceSelection(bounds, fit = false) {
+      drawnItems.clearLayers();
+      selection = L.rectangle(bounds, {
+        color: '#e5b63f', weight: 3, fillColor: '#e5b63f', fillOpacity: 0.10
+      }).addTo(drawnItems);
+      buildHandles();
+      if (fit) map.fitBounds(bounds, {padding: [42, 42], maxZoom: 16, animate: false});
+      updateMetrics();
+    }
+
+    function beginRectangleDraw() {
+      if (!map || !L.Draw) return;
+      new L.Draw.Rectangle(map, {
+        shapeOptions: {color: '#e5b63f', weight: 3, fillColor: '#e5b63f', fillOpacity: 0.10},
+        showArea: true,
+        metric: true
+      }).enable();
+      setStatus(ui.submit, 'Drag on the map to draw the new area.');
+    }
+
+    async function search() {
+      const query = ui.searchInput.value.trim();
+      if (query.length < 3) {
+        setStatus(ui.searchStatus, 'Enter at least three characters.', 'error');
+        return;
+      }
+      ui.searchButton.disabled = true;
+      setStatus(ui.searchStatus, 'Searching OpenStreetMap…');
+      ui.resultList.style.display = 'none';
+      try {
+        const response = await fetch(endpoint('/geocode', {q: query}), {cache: 'no-store'});
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || 'Search failed.');
+        ui.resultList.innerHTML = '';
+        for (const item of payload.results) {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'result-item';
+          const title = document.createElement('strong');
+          title.textContent = item.display_name;
+          const meta = document.createElement('small');
+          meta.textContent = [item.category, item.type].filter(Boolean).join(' · ');
+          button.append(title, meta);
+          button.addEventListener('click', () => {
+            selectedDisplayName = item.display_name;
+            const b = item.bounds;
+            replaceSelection([[b.south, b.west], [b.north, b.east]], true);
+            ui.resultList.style.display = 'none';
+            setStatus(ui.searchStatus, 'Area found. Resize or move the rectangle if needed.', 'success');
+          });
+          ui.resultList.appendChild(button);
+        }
+        ui.resultList.style.display = 'block';
+        setStatus(ui.searchStatus, `${payload.results.length} result(s) found.`);
+      } catch (error) {
+        setStatus(ui.searchStatus, String(error.message || error), 'error');
+      } finally {
+        ui.searchButton.disabled = false;
+      }
+    }
+
+    function waitForMap(timeoutMs = 1600) {
+      return new Promise((resolve) => {
+        let finished = false;
+        const done = () => {
+          if (finished) return;
+          finished = true;
+          tileLayer.off('load', done);
+          resolve();
+        };
+        tileLayer.once('load', done);
+        window.setTimeout(done, timeoutMs);
+      });
+    }
+
+    async function captureThumbnail() {
+      if (!selection) return '';
+      map.fitBounds(selection.getBounds(), {padding: [52, 52], maxZoom: 17, animate: false});
+      await waitForMap();
+      const mapElement = map.getContainer();
+      const mapRect = mapElement.getBoundingClientRect();
+      const canvas = document.createElement('canvas');
+      canvas.width = 640;
+      canvas.height = 380;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return '';
+      ctx.fillStyle = '#182027';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      const scaleX = canvas.width / Math.max(1, mapRect.width);
+      const scaleY = canvas.height / Math.max(1, mapRect.height);
+      for (const image of mapElement.querySelectorAll('img.leaflet-tile-loaded')) {
+        const rect = image.getBoundingClientRect();
+        try {
+          ctx.drawImage(
+            image,
+            (rect.left - mapRect.left) * scaleX,
+            (rect.top - mapRect.top) * scaleY,
+            rect.width * scaleX,
+            rect.height * scaleY
+          );
+        } catch (_) {}
+      }
+      const bounds = selection.getBounds();
+      const nw = map.latLngToContainerPoint(bounds.getNorthWest());
+      const se = map.latLngToContainerPoint(bounds.getSouthEast());
+      const x = nw.x * scaleX;
+      const y = nw.y * scaleY;
+      const width = (se.x - nw.x) * scaleX;
+      const height = (se.y - nw.y) * scaleY;
+      ctx.fillStyle = 'rgba(229,182,63,0.13)';
+      ctx.fillRect(x, y, width, height);
+      ctx.strokeStyle = '#f4c851';
+      ctx.lineWidth = 5;
+      ctx.strokeRect(x, y, width, height);
+      const metrics = measure(bounds);
+      ctx.fillStyle = 'rgba(7,16,24,0.86)';
+      ctx.fillRect(0, 0, canvas.width, 54);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 20px Segoe UI, Arial';
+      const title = (selectedDisplayName || config.area_name || 'Selected map area').slice(0, 55);
+      ctx.fillText(title, 18, 24);
+      ctx.fillStyle = '#e5b63f';
+      ctx.font = 'bold 14px Segoe UI, Arial';
+      ctx.fillText(`${(metrics.width / 1000).toFixed(2)} × ${(metrics.height / 1000).toFixed(2)} km · ${metrics.areaKm2.toFixed(2)} km² · ${metrics.load.replace('_', ' ')}`, 18, 45);
+      ctx.fillStyle = 'rgba(7,16,24,0.82)';
+      ctx.fillRect(canvas.width - 48, 66, 30, 50);
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(canvas.width - 33, 105);
+      ctx.lineTo(canvas.width - 33, 76);
+      ctx.lineTo(canvas.width - 41, 86);
+      ctx.moveTo(canvas.width - 33, 76);
+      ctx.lineTo(canvas.width - 25, 86);
+      ctx.stroke();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 13px Segoe UI, Arial';
+      ctx.fillText('N', canvas.width - 38, 113);
+      try {
+        return canvas.toDataURL('image/jpeg', 0.78);
+      } catch (_) {
+        return '';
+      }
+    }
+
+    async function resolveSelectionName() {
+      if (!selection) return selectedDisplayName || config.area_name || 'Selected Map Area';
+      const center = selection.getBounds().getCenter();
+      try {
+        const response = await fetch(
+          endpoint('/reverse', {lat: center.lat.toFixed(7), lon: center.lng.toFixed(7)}),
+          {cache: 'no-store'}
+        );
+        const payload = await response.json();
+        if (response.ok && payload.display_name) {
+          selectedDisplayName = payload.display_name;
+          return selectedDisplayName;
+        }
+      } catch (_) {}
+      return `Selected Area — ${center.lat.toFixed(5)}, ${center.lng.toFixed(5)}`;
+    }
+
+    async function submitSelection() {
+      if (!selection) return;
+      ui.use.disabled = true;
+      setStatus(ui.submit, 'Identifying the selected area and preparing its preview…');
+      try {
+        const resolvedName = await resolveSelectionName();
+        const thumbnail = await captureThumbnail();
+        if (!thumbnail) {
+          throw new Error('The map thumbnail could not be captured. Wait for the map tiles to finish loading and try again.');
+        }
+        const body = {
+          ...boundsObject(selection.getBounds()),
+          display_name: resolvedName,
+          thumbnail
+        };
+        const response = await fetch(endpoint('/selection'), {
+          method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
+        });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || 'Blender rejected the selection.');
+        setStatus(ui.submit, 'Preview sent safely. Return to Blender and click Review and Confirm before the area becomes active. Keep this tab open if you want to edit again.', 'success');
+        ui.badge.textContent = 'Preview sent — click Review and Confirm in Blender.';
+      } catch (error) {
+        setStatus(ui.submit, String(error.message || error), 'error');
+      } finally {
+        ui.use.disabled = false;
+      }
+    }
+
+    async function cancel() {
+      try { await fetch(endpoint('/cancel'), {method: 'POST'}); } catch (_) {}
+      setStatus(ui.submit, 'Selection cancelled. Return to Blender.');
+    }
+
+    async function initialize() {
+      if (!window.L || !L.Draw) {
+        setStatus(ui.submit, 'Leaflet map libraries could not be loaded. Check the browser internet connection.', 'error');
+        return;
+      }
+      try {
+        const response = await fetch(endpoint('/config'), {cache: 'no-store'});
+        config = await response.json();
+        if (!response.ok) throw new Error(config.error || 'Selector configuration failed.');
+      } catch (error) {
+        setStatus(ui.submit, String(error.message || error), 'error');
+        return;
+      }
+
+      ui.searchInput.value = config.area_name || '';
+      selectedDisplayName = config.area_name || '';
+      map = L.map('map', {zoomControl: true, preferCanvas: true, worldCopyJump: true});
+      tileLayer = L.tileLayer(config.tile_url, {
+        maxZoom: 19, attribution: config.tile_attribution, crossOrigin: 'anonymous'
+      }).addTo(map);
+      drawnItems = new L.FeatureGroup().addTo(map);
+      handleLayer = new L.LayerGroup().addTo(map);
+      const drawControl = new L.Control.Draw({
+        position: 'topright',
+        draw: {
+          polyline: false, polygon: false, circle: false, marker: false, circlemarker: false,
+          rectangle: {shapeOptions: {color: '#e5b63f', weight: 3, fillColor: '#e5b63f', fillOpacity: 0.10}, showArea: true, metric: true}
+        },
+        edit: false
+      });
+      map.addControl(drawControl);
+      map.on(L.Draw.Event.CREATED, (event) => {
+        replaceSelection(event.layer.getBounds(), false);
+        setStatus(ui.submit, 'Rectangle created. Drag its handles to resize or move it.');
+      });
+
+      const b = config.bounds;
+      replaceSelection([[b.south, b.west], [b.north, b.east]], true);
+      ui.searchButton.addEventListener('click', search);
+      ui.searchInput.addEventListener('keydown', (event) => { if (event.key === 'Enter') search(); });
+      ui.draw.addEventListener('click', beginRectangleDraw);
+      ui.fit.addEventListener('click', () => selection && map.fitBounds(selection.getBounds(), {padding: [42, 42], maxZoom: 16, animate: false}));
+      ui.use.addEventListener('click', submitSelection);
+      ui.cancel.addEventListener('click', cancel);
+    }
+
+    initialize();
+  })();
+  </script>
+</body>
+</html>

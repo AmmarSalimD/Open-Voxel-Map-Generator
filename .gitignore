@@ -1,0 +1,45 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyd
+.pytest_cache/
+.coverage
+
+# Blender backup files
+*.blend1
+*.blend2
+*.blend@
+*.autosave
+
+# Generated maps and exports
+exports/
+generated/
+output/
+*.glb
+*.gltf
+*.fbx
+*.obj
+*.usd
+*.usdc
+*.usda
+
+# Temporary map previews
+*.tmp
+*.temp
+preview_*
+map_preview_*
+
+# Development tools
+.vscode/
+.idea/
+
+# Windows and macOS
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Secrets
+.env
+.env.*
+*.key
+*.pem

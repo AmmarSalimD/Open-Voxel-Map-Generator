@@ -1,0 +1,38 @@
+schema_version = "1.0.0"
+
+id = "open_voxel_map_generator"
+version = "2.0.4"
+name = "Open Voxel Map Generator"
+tagline = "Six-step real-map generation with source-accurate defaults and architectural presentation"
+maintainer = "Ammar Salim"
+type = "add-on"
+
+blender_version_min = "5.1.0"
+license = ["SPDX:GPL-3.0-or-later"]
+tags = ["Add Mesh", "Import-Export", "Modeling", "Scene", "User Interface"]
+platforms = ["windows-x64"]
+
+wheels = [
+  "./wheels/click-8.4.2-py3-none-any.whl",
+  "./wheels/colorama-0.4.6-py2.py3-none-any.whl",
+  "./wheels/numpy-2.3.5-cp313-cp313-win_amd64.whl",
+  "./wheels/orjson-3.11.9-cp313-cp313-win_amd64.whl",
+  "./wheels/overturemaps-1.0.1-py3-none-any.whl",
+  "./wheels/pyarrow-25.0.0-cp313-cp313-win_amd64.whl",
+  "./wheels/pyfiglet-1.0.4-py3-none-any.whl",
+  "./wheels/shapely-2.1.2-cp313-cp313-win_amd64.whl",
+  "./wheels/tqdm-4.68.4-py3-none-any.whl",
+]
+
+[permissions]
+network = "Open the visual map selector, resolve place names, and download OSM and Overture data"
+
+[build]
+paths_exclude_pattern = [
+  "__pycache__/",
+  "*.pyc",
+  "/tests/",
+  "/docs/",
+  "/.git/",
+  "/*.zip",
+]
