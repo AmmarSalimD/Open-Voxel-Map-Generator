@@ -1,3 +1,5 @@
+
+
 # Open Voxel Map Generator — OVMG 1.8.6-alpha
 
 A Blender 5.1 Windows x64 extension that converts a precisely selected geographic rectangle into an optimized 3D city using OpenStreetMap and optional Overture building data.
@@ -50,3 +52,16 @@ Normal confirmation and generation actions use Blender's regular theme styling. 
 ## Installation
 
 Install `Open_Voxel_Map_Generator_v1.8.6-alpha_WINDOWS_INSTALL.zip` from **Edit > Preferences > Get Extensions > Install from Disk**, restart Blender, enable Online Access, and open the **Voxel Maps** tab.
+
+## Creator
+
+Created by **Ammar Salim**
+- Instagram: [@ammar_salim_d](https://www.instagram.com/ammar_salim_d/)
+- ## Demo Video
+
+[![Watch OVMG in action](docs/images/demo-thumbnail.jpg)](https://www.instagram.com/p/DaySfxKOfU8/)
+
+- X / Twitter: [@surrealism19](https://x.com/surrealism19)
+- 
+
+
